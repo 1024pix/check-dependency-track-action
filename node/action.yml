@@ -1,0 +1,62 @@
+name: 'Dependency Track check - NodeJS'
+description: 'Creates BoM and upload repository to OWASP Dependency Track to find vulnerabilities'
+branding:
+  icon: 'check-square'  
+  color: 'green'
+
+inputs:
+  url:  
+    description: 'URL of OWASP Dependency Track REST API'
+    required: true
+  key:
+    description: 'Key to access OWASP Dependency Track REST API'
+    required: true
+  directory:
+    description: 'Sub-directory for monorepos'
+    required: false
+    default: '.'
+  node_version:
+    description: 'Optional node version to use'
+    required: false
+    default: '' # test : 22.14.0
+  omit_devdependencies:
+    description: 'Doesnt compute packages from Dev dependencies'
+    required: false
+    default: false
+
+outputs:
+  riskscore:
+    value: '${{ steps.upload.outputs.riskscore }}'
+    description: 'String with the number of vulnerabilities found'
+
+runs:
+  using: composite
+  steps: 
+    - if: inputs.node_version
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with: 
+        node-version: ${{ inputs.node_version }}
+    - id: compute_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env: 
+        SBOM_FILENAME: "sbom.json"
+      run: |
+        [ -f package-lock.json ] || { echo "[-] package-lock.json not found. Stopping the action!"; exit 1; }
+        npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --package-lock-only \
+          --output-format JSON --spec-version 1.5 --output-file "$SBOM_FILENAME"
+    - id: validate_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: bash "${{ github.action_path }}/../scripts/validate-sbom.sh"
+      env: 
+        SBOM_FILENAME: "sbom.json"
+    - id: upload
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SBOM_FILENAME: "sbom.json"
+        DTRACK_URL: ${{ inputs.url }}
+        DTRACK_KEY: ${{ inputs.key }} 
+        DIRECTORY: ${{ inputs.directory }}
+      run: bash "${{ github.action_path }}/../scripts/upload.sh"

@@ -14,9 +14,13 @@ It doesnt support basic auth on dependency-track, monorepo, and dynamic nodejs v
 
 ## TODO 
 
-* [ ] use pinned versions of cyclonedx-npm
-* [ ] use specific versions of npm
+* [x] use pinned versions of cyclonedx-npm
+* [x] use specific versions of npm
+* [x] language : node
+* [ ] wire `omit_devdependencies`
 * [ ] query dependency-track with basic auth
+* [ ] language : python
+* [ ] language : go (go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest / cyclonedx-gomod app -json .)
 
 ## Implementation plan
 
@@ -40,7 +44,9 @@ Usage: uses: 1024pix/dtrack-action/node@<sha>
 
 This action requires these input variables:
 - **url**: URL of the OWASP Dependency Track server
-- **key**: KEY used to access the OWASP Dependency Track server, please not that this must no be appropiate for public repositories. This key is confidencial information, so we recommend to [create a secret](https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository) in the project settings. In the action example we use the name `SECRET_OWASP_DT_KEY` for this secret.
+- **key**: KEY used to access the OWASP Dependency Track server, please not that this must no be appropiate for public repositories. 
+  * This key is confidencial information, so we recommend to [create a secret](https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository) in the project settings. In the action example we use the name `SECRET_OWASP_DT_KEY` for this secret.
+  * Scopes needed : BOM_UPLOAD, PROJECT_CREATION_UPLOAD, VIEW_PORTFOLIO
 - **language**: (refer to the next section)
 - **directory**: (optional) for monorepos, dependencies may be defined in a sub-directory. Defautl = `.`
 - **node_version**: (optional) version for node
@@ -54,6 +60,7 @@ This action requires these input variables:
 ## Supported languages
 
 Currently this action supports the generation of upload of projects devloped in the languages as follows:
+
 - **Node.js**: define the language variable as `npm` or `npm-ci`. `npm install` will be executed within the container to gather all the dependencies or the package-lock file will be used.  
 - **Python**: define the language variable as `python`. It will get the package information from requirements.txt. 
 - **Golang**: define the language variable as `golang`. It will get the package information from go.mod, which is typically present in the repository.
@@ -64,12 +71,15 @@ Please note that if any of the files above is not available the action will fail
 
 ## How to use it
 
-**Step 1: Get your Dependency Track both URL and Key**
+### Step 1: Get your Dependency Track both URL and Key
 
 This will let you use the API to upload your projects' bom.xml from this GitHub action.
-+ How to get your Key. Go to Configuration -> Teams -> Create Team to create a new team. This will also create a corresponding API Key, although a team might have multiple Keys. You can find more info about this [here](https://docs.dependencytrack.org/integrations/rest-api/).
++ How to get your Key. Go to Configuration -> Teams -> Create Team to create a new team. This will also create a corresponding API Key, although a team might have multiple Keys. You can find more info about this [here](https://docs.dependencytrack.org/integrations/rest-api/). 
 
-**Step 2: Set up your action.yml file**
+Scopes needed : BOM_UPLOAD, PROJECT_CREATION_UPLOAD, VIEW_PORTFOLIO, nothing else.
+
+### Step 2: Set up your action.yml file
+
 + Start by creating a `.github/workflows` directory in your repository if it doesn't already exist.
 + In this directory, create a file named `owasp-dt-check.yml`.
 + Copy the example shown below into your `owasp-dt-check.yml` file:
@@ -108,7 +118,7 @@ jobs:
       
       # Show the risk score output 
       - name: Get the output time
-        run: echo "The risk score of the project is ${{ steps.riskscoreFromDT.outputs.riskscore }}"
+        run: echo "The risk score of the project is ${{ steps.upload.outputs.riskscore }}"
 ```
 
 Don't forget to change the `url` `key` and `language` according to your project and Dependecy Track server. As you can see, we're using a secret to save our DT's user valid key. We strongly recommend you to do so.

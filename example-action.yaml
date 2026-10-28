@@ -18,12 +18,12 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2 
+      - uses: actions/checkout@v7
       
       # Generates a BoM and uploads it to OWASP Dependency Track
       - name: Generates BoM and upload to OWASP DTrack
         id: riskscoreFromDT
-        uses:  Quobis/action-owasp-dependecy-track-check@main
+        uses: 1024pix/action-owasp-dependecy-track-check@main
         with:
           url: 'https://dtrack.quobis.com'
           key: '${{ secrets.SECRET_OWASP_DT_KEY }}'
@@ -31,4 +31,4 @@ jobs:
       
       # Show the risk score output 
       - name: Get the output time
-        run: echo "The risk score of the project is ${{ steps.riskscoreFromDT.outputs.riskscore }}"
+        run: echo "The risk score of the project is  ${{ steps.upload.outputs.riskscore }}"
