@@ -7,7 +7,7 @@ set -eo pipefail
 # register in Github runner the API KEY as a secret -> it will not be echoed in the logs
 echo "::add-mask::$DTRACK_KEY" 
 
-DEPTRACK_RETRIES_TIMEOUT=50
+DEPTRACK_RETRIES_TIMEOUT=25
 VERBOSE="--verbose"
 # INSECURE="--insecure"
 
@@ -52,7 +52,7 @@ processing=$(curl $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK
 
 
 while [ "$processing" != "false" ]; do
-    sleep 5
+    sleep 10
     processing=$(curl  $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK_URL%/}/api/v1/bom/token/$token \
 --header "X-Api-Key: $DTRACK_KEY" | jq '.processing')
     c=$((c + 1))
@@ -65,7 +65,7 @@ done
 echo "[*] OWASP Dependency Track processing completed"
 
 # wait to make sure the score is available, some errors found during tests w/o this wait
-sleep 5
+sleep 10
 
 echo "[*] Retrieving project information"
 project=$(curl  $INSECURE $VERBOSE -s --location --fail --get "${DTRACK_URL%/}/api/v1/project/lookup" \

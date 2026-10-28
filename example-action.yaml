@@ -1,34 +1,27 @@
-# This is a basic workflow to help you get started with Actions
+name: Dependency-Track check
 
-name: CI
-
-# Controls when the action will run. 
 on: [push]
 
-  # Allows you to run this workflow manually from the Actions tab
-  # workflow_dispatch:
+permissions:
+  contents: read
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  dependency-track:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v7
-      
-      # Generates a BoM and uploads it to OWASP Dependency Track
-      - name: Generates BoM and upload to OWASP DTrack
+      # Pin actions by commit SHA
+      - uses: actions/checkout@<sha> # v7
+
+      # Generates an SBOM and uploads it to OWASP Dependency-Track
+      - name: Generate SBOM and upload to OWASP Dependency-Track
         id: riskscoreFromDT
-        uses: 1024pix/action-owasp-dependecy-track-check@main
+        uses: 1024pix/check-dependency-track-action/node@<sha>
         with:
-          url: 'https://dtrack.quobis.com'
+          url: 'https://dtrack.example.com'
           key: '${{ secrets.SECRET_OWASP_DT_KEY }}'
-          language: 'golang'
-      
-      # Show the risk score output 
-      - name: Get the output time
-        run: echo "The risk score of the project is  ${{ steps.upload.outputs.riskscore }}"
+          # directory: 'api'          # optional, for monorepos
+          # node_version: '22.14.0'   # optional, default = runner's Node.js
+
+      # Show the risk score output
+      - name: Show the risk score
+        run: echo "The risk score of the project is ${{ steps.riskscoreFromDT.outputs.riskscore }}"

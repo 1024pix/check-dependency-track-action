@@ -75,8 +75,7 @@ runs:
 - PR workflow:
   - actionlint, shellcheck,for workflows).
   - Each action with upload: false (dry-run input), then validate the BOM with cyclonedx-cli validate.
-- Integration workflow (manual or nightly) against your real Dependency Track,
-  with a dedicated test key
+- Integration workflow (manual or nightly) against your real Dependency Track, with a dedicated test key
 - Set permissions: contents: read on every workflow.
 
 ## Phase 6: Dependency maintenance
