@@ -7,6 +7,16 @@ set -eo pipefail
 # register in Github runner the API KEY as a secret -> it will not be echoed in the logs
 echo "::add-mask::$DTRACK_KEY" 
 
+# prepare basic auth args and protects them from leakage in the logs
+BASIC_AUTH_ARGS=()
+if [[ -n "${BASIC_USER}" ]]; then
+    [[ -n "${BASIC_PASSWORD}" ]] || { echo "[-] BASIC_PASSWORD not set"; exit 1; }
+    # mask both the secret and its base64
+    echo "::add-mask::$BASIC_PASSWORD"
+    echo "::add-mask::$(printf '%s:%s' "$BASIC_USER" "$BASIC_PASSWORD" | base64 -w0)"
+    BASIC_AUTH_ARGS=(--user "${BASIC_USER}:${BASIC_PASSWORD}")
+fi
+
 DEPTRACK_RETRIES_TIMEOUT=25
 VERBOSE="--verbose"
 # INSECURE="--insecure"
@@ -30,6 +40,7 @@ fi
 # UPLOAD BoM to Dependency track server
 echo "[*] Uploading BoM file to Dependency Track server"
 upload_bom_response=$(curl $INSECURE $VERBOSE -s --location --fail --request POST ${DTRACK_URL%/}/api/v1/bom \
+"${BASIC_AUTH_ARGS[@]}" \
 --header "X-Api-Key: $DTRACK_KEY" \
 --header "Content-Type: multipart/form-data" \
 --form "autoCreate=true" \
@@ -48,13 +59,13 @@ fi
 
 echo "[*] Checking BoM processing status"
 processing=$(curl $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK_URL%/}/api/v1/bom/token/$token \
---header "X-Api-Key: $DTRACK_KEY" | jq '.processing')
+"${BASIC_AUTH_ARGS[@]}" --header "X-Api-Key: $DTRACK_KEY" | jq '.processing')
 
 
 while [ "$processing" != "false" ]; do
     sleep 10
-    processing=$(curl  $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK_URL%/}/api/v1/bom/token/$token \
---header "X-Api-Key: $DTRACK_KEY" | jq '.processing')
+    processing=$(curl $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK_URL%/}/api/v1/bom/token/$token \
+"${BASIC_AUTH_ARGS[@]}" --header "X-Api-Key: $DTRACK_KEY" | jq '.processing')
     c=$((c + 1))
     if [ "$c" -eq $DEPTRACK_RETRIES_TIMEOUT ]; then
         echo "[-]  Timeout while waiting for processing result. Please check the OWASP Dependency Track status."
@@ -69,6 +80,7 @@ sleep 10
 
 echo "[*] Retrieving project information"
 project=$(curl  $INSECURE $VERBOSE -s --location --fail --get "${DTRACK_URL%/}/api/v1/project/lookup" \
+"${BASIC_AUTH_ARGS[@]}" \
 --data-urlencode "name=$PROJECT_NAME" \
 --data-urlencode "version=$GITHUB_REF" \
 --header "X-Api-Key: $DTRACK_KEY")

@@ -10,8 +10,6 @@ The project is uploaded to Dependency-Track using the repository name as `projec
 
 This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-track-check. The Quobis action is more generic (it supports Ruby, Maven, NuGet and PHP), which is not necessary for us.
 
-It doesn't support basic auth on Dependency-Track, monorepos, or dynamic Node.js versions.
-
 ## Structure
 
 One repo, one composite action per language, shared scripts:
@@ -31,7 +29,7 @@ One repo, one composite action per language, shared scripts:
 * [ ] remove `--location` from curl calls (API key could follow a redirect to another host)
 * [ ] choose the polling endpoint according to the Dependency-Track version (`/api/v1/bom/token/` vs `/api/v1/event/token/`)
 * [ ] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
-* [ ] query dependency-track with basic auth
+* [x] query dependency-track with basic auth
 * [ ] language : python
 * [ ] language : go (go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest / cyclonedx-gomod app -json .)
 
@@ -44,6 +42,8 @@ One repo, one composite action per language, shared scripts:
 - **directory**: (optional) for monorepos, the sub-directory containing `package-lock.json`. Default = `.`
 - **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
 - **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
+- **basic_user**: (optional) Basic Auth username
+- **basic_password**: (optional) Basic Auth password
 
 ## Output variables
 

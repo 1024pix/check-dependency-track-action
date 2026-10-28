@@ -23,6 +23,14 @@ inputs:
     description: 'Doesnt compute packages from Dev dependencies'
     required: false
     default: false
+  basic_user:
+    description: 'Optional Basic Auth user name'
+    required: false
+    default: ''
+  basic_password:
+    description: 'Optional Basic Auth password'
+    required: false
+    default: ''
 
 outputs:
   riskscore:
@@ -59,4 +67,6 @@ runs:
         DTRACK_URL: ${{ inputs.url }}
         DTRACK_KEY: ${{ inputs.key }} 
         DIRECTORY: ${{ inputs.directory }}
+        BASIC_USER: ${{ inputs.basic_user }}
+        BASIC_PASSWORD: ${{ inputs.basic_password }}
       run: bash "${{ github.action_path }}/../scripts/upload.sh"
