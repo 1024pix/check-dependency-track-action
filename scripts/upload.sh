@@ -92,3 +92,18 @@ risk_score=$(echo $project | jq ".lastInheritedRiskScore")
 echo "Project risk score: $risk_score"
 
 echo "riskscore=$risk_score" >> "$GITHUB_OUTPUT"
+
+# returns a status value based on policies (pass/warn/fail)
+fail=$(jq -r '.metrics.policyViolationsFail // 0' <<<"$project")
+warn=$(jq -r '.metrics.policyViolationsWarn // 0' <<<"$project")
+if   (( fail > 0 )); then status=fail
+elif (( warn > 0 )); then status=warn
+else status=pass; fi
+echo "status=$status" >> "$GITHUB_OUTPUT"
+
+{
+  echo "### Dependency-Track: ${status}"
+  echo "| Critical | High | Medium | Low | Risk score |"
+  echo "|---|---|---|---|---|"
+  jq -r '.metrics | "| \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \(.inheritedRiskScore // 0) |"' <<<"$project"
+} >> "$GITHUB_STEP_SUMMARY"

@@ -42,16 +42,19 @@ One repo, one composite action per language, shared scripts:
 - **directory**: (optional) for monorepos, the sub-directory containing `package-lock.json`. Default = `.`
 - **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
 - **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
-- **basic_user**: (optional) Basic Auth username
-- **basic_password**: (optional) Basic Auth password
+- **basic_user**: (optional) Basic Auth username, if Dependency-Track sits behind a reverse proxy requiring it.
+- **basic_password**: (optional) Basic Auth password. Required if `basic_user` is set. Store it as a secret, and only use it over HTTPS.
 
 ## Output variables
 
 - **riskscore**: the risk score calculated by OWASP Dependency-Track based on the vulnerabilities found. It can be used to make decisions, such as notifying the developer, or as the input of the next step of the workflow.
+- **status**: `pass`, `warn` or `fail`, based on the Dependency-Track [policy violations](https://docs.dependencytrack.org/usage/policy-compliance/) of the project. Without policies configured in Dependency-Track, it is always `pass`.
+
+The action also writes a summary (vulnerabilities by severity, risk score, status) to the [job summary](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary) of the workflow run.
 
 ## Supported languages
 
-- **Node.js**: `uses: 1024pix/action-dependecy-track-pix/node@<sha>`. A `package-lock.json` is required. The SBOM is built from the lockfile only (`--package-lock-only`): nothing is installed and no install scripts are run.
+- **Node.js**: `uses: 1024pix/check-dependency-track-action/node@<sha>`. A `package-lock.json` is required. The SBOM is built from the lockfile only (`--package-lock-only`): nothing is installed and no install scripts are run.
 - **Python**: planned.
 - **Go**: planned.
 
@@ -60,7 +63,7 @@ One repo, one composite action per language, shared scripts:
 1. `actions/setup-node`, only if `node_version` is set.
 2. Generates `sbom.json` with `cyclonedx-npm` (pinned version), CycloneDX JSON v1.5.
 3. `scripts/validate-sbom.sh`: downloads `cyclonedx-cli` (pinned version, SHA-256 checked) and validates the SBOM. This step does not receive the API key.
-4. `scripts/upload.sh`: uploads the SBOM, waits for Dependency-Track to process it, then reads the project's risk score.
+4. `scripts/upload.sh`: uploads the SBOM, waits for Dependency-Track to process it, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
 
 ## How to use it
 
@@ -80,10 +83,14 @@ Permissions needed: `BOM_UPLOAD`, `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, n
 ```yaml
 name: Dependency-Track check
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions:
   contents: read
+  pull-requests: write # only needed for the PR comment step
 
 jobs:
   dependency-track:
@@ -104,11 +111,30 @@ jobs:
 
       # Show the risk score output
       - name: Show the risk score
-        run: echo "The risk score of the project is ${{ steps.riskscoreFromDT.outputs.riskscore }}"
+        env:
+          SCORE: ${{ steps.riskscoreFromDT.outputs.riskscore }}
+        run: echo "The risk score of the project is $SCORE"
+
+      # Posts (or updates) a single comment on the PR
+      # Does not work on PRs from forks: GITHUB_TOKEN is read-only there
+      - name: Comment on the PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCORE: ${{ steps.riskscoreFromDT.outputs.riskscore }}
+          STATUS: ${{ steps.riskscoreFromDT.outputs.status }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none \
+            --body "Dependency-Track: **${STATUS}**, risk score **${SCORE}**"
 ```
 
 Change `url` and `key` according to your Dependency-Track server. Keep the key in a secret.
 
+About the PR comment step:
+- It needs `pull-requests: write`. Remove the step and that permission if you only want the job summary.
+- On PRs from forks, `GITHUB_TOKEN` is read-only, so the comment fails. Do **not** work around it with `pull_request_target` and a checkout of the PR code ([why](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/)).
+
 The same example is available in `example-action.yaml` in this repository.
 
-+ Commit the workflow file. The workflow runs on every push, and the results appear in your Dependency-Track server.
++ Commit the workflow file. The workflow runs on every push to `main` and on every pull request, and the results appear in your Dependency-Track server.

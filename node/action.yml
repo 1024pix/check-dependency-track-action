@@ -35,7 +35,10 @@ inputs:
 outputs:
   riskscore:
     value: '${{ steps.upload.outputs.riskscore }}'
-    description: 'String with the number of vulnerabilities found'
+    description: 'String with the risk score (weighted number of vulnerabilities)'
+  status:
+    value: '${{ steps.upload.outputs.status }}'
+    description: 'pass|warn|fail based on Dependency Track policies'
 
 runs:
   using: composite
