@@ -1,0 +1,73 @@
+name: 'Dependency Track check - Golang'
+description: 'Creates BoM and upload repository to OWASP Dependency Track to find vulnerabilities'
+branding:
+  icon: 'check-square'  
+  color: 'green'
+
+inputs:
+  url:  
+    description: 'URL of OWASP Dependency Track REST API'
+    required: true
+  key:
+    description: 'Key to access OWASP Dependency Track REST API'
+    required: true
+  directory:
+    description: 'Module root (for monorepos)'
+    required: false
+    default: '.'
+  main:
+    description: 'Main file directory, relative to directory (e.g. cmd/server)'
+    required: false
+    default: '.'
+  basic_user:
+    description: 'Optional Basic Auth user name'
+    required: false
+    default: ''
+  basic_password:
+    description: 'Optional Basic Auth password'
+    required: false
+    default: ''
+
+outputs:
+  riskscore:
+    value: '${{ steps.upload.outputs.riskscore }}'
+    description: 'String with the risk score (weighted number of vulnerabilities)'
+  status:
+    value: '${{ steps.upload.outputs.status }}'
+    description: 'pass|warn|fail based on Dependency Track policies'
+
+runs:
+  using: composite
+  steps: 
+    - id: setup_go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: ${{ inputs.directory }}/go.mod
+        cache-dependency-path: ${{ inputs.directory }}/go.sum
+    - id: compute_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env: 
+        SBOM_FILENAME: "sbom.json"
+        MAIN: ${{ inputs.main }}
+      run: |
+        [ -f go.mod ] || { echo "[-] go.mod not found. Stopping the action!"; exit 1; }
+        go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@07257d5b9cbd2a3d4338a880c0ca50081e1ac445 # v1.12.0
+        "$(go env GOPATH)/bin/cyclonedx-gomod" app -packages -main "$MAIN" -json -output "$SBOM_FILENAME" -output-version 1.5
+    - id: validate_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: bash "${{ github.action_path }}/../scripts/validate-sbom.sh"
+      env: 
+        SBOM_FILENAME: "sbom.json"
+    - id: upload
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SBOM_FILENAME: "sbom.json"
+        DTRACK_URL: ${{ inputs.url }}
+        DTRACK_KEY: ${{ inputs.key }}
+        DIRECTORY: ${{ inputs.directory }}
+        BASIC_USER: ${{ inputs.basic_user }}
+        BASIC_PASSWORD: ${{ inputs.basic_password }}
+      run: bash "${{ github.action_path }}/../scripts/upload.sh"

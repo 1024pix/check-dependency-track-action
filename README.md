@@ -10,16 +10,6 @@ The project is uploaded to Dependency-Track using the repository name as `projec
 
 This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-track-check. The Quobis action is more generic (it supports Ruby, Maven, NuGet and PHP), which is not necessary for us.
 
-## Structure
-
-One repo, one composite action per language, shared scripts:
-
-```
-├── node/action.yml          # setup-node (optional) → cyclonedx-npm --package-lock-only
-├── scripts/validate-sbom.sh # installs cyclonedx-cli (pinned + SHA-256) and validates the SBOM
-└── scripts/upload.sh        # upload + polling + risk score
-```
-
 ## TODO
 
 * [x] use pinned versions of cyclonedx-npm
@@ -31,7 +21,7 @@ One repo, one composite action per language, shared scripts:
 * [ ] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
 * [x] query dependency-track with basic auth
 * [ ] language : python
-* [ ] language : go (go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest / cyclonedx-gomod app -json .)
+* [x] language : go
 
 ## Input variables
 
@@ -56,7 +46,7 @@ The action also writes a summary (vulnerabilities by severity, risk score, statu
 
 - **Node.js**: `uses: 1024pix/check-dependency-track-action/node@<sha>`. A `package-lock.json` is required. The SBOM is built from the lockfile only (`--package-lock-only`): nothing is installed and no install scripts are run.
 - **Python**: planned.
-- **Go**: planned.
+- **Go**: `uses: 1024pix/check-dependency-track-action/golang@<sha>`.
 
 ## How it works
 
