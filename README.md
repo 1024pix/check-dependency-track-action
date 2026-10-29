@@ -20,7 +20,7 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 * [ ] choose the polling endpoint according to the Dependency-Track version (`/api/v1/bom/token/` vs `/api/v1/event/token/`)
 * [ ] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
 * [x] query dependency-track with basic auth
-* [ ] language : python
+* [x] language : python (pip, uv)
 * [x] language : go
 
 ## Input variables
@@ -29,9 +29,16 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 - **key**: (required) API key used to access the OWASP Dependency-Track server.
   * This key is confidential, so [store it as a secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) in the project settings. The example below uses the name `SECRET_OWASP_DT_KEY`.
   * Permissions needed: `BOM_UPLOAD`, `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, nothing else.
-- **directory**: (optional) for monorepos, the sub-directory containing `package-lock.json`. Default = `.`
-- **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
-- **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
+- **directory**: (optional) for monorepos, the sub-directory containing `package-lock.json`, `go.mod`, `requirements.txt` or `uv.lock`. Default = `.`
+- Node.js only:
+  - **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
+  - **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
+- Go only:
+  - **main**: (optional) path to the `main` package, relative to `directory` (e.g. `cmd/server`). Default = `.`
+- Python only:
+  - **package_manager**: (required) `pip` or `uv`.
+  - **requirements_file**: (optional, pip only) requirements file, relative to `directory`. Default = `requirements.txt`
+  - **python_version**: (optional) Python version to install with `actions/setup-python`. Default = empty, which keeps the runner's Python.
 - **basic_user**: (optional) Basic Auth username, if Dependency-Track sits behind a reverse proxy requiring it.
 - **basic_password**: (optional) Basic Auth password. Required if `basic_user` is set. Store it as a secret, and only use it over HTTPS.
 
@@ -45,13 +52,16 @@ The action also writes a summary (vulnerabilities by severity, risk score, statu
 ## Supported languages
 
 - **Node.js**: `uses: 1024pix/check-dependency-track-action/node@<sha>`. A `package-lock.json` is required. The SBOM is built from the lockfile only (`--package-lock-only`): nothing is installed and no install scripts are run.
-- **Python**: planned.
-- **Go**: `uses: 1024pix/check-dependency-track-action/golang@<sha>`.
+- **Python**: `uses: 1024pix/check-dependency-track-action/python@<sha>`.
+  - `package_manager: pip`: installs the requirements file in a temporary venv. Use a fully pinned file (e.g. `pip-compile` output), otherwise the SBOM depends on the day it runs.
+  - `package_manager: uv`: `uv.lock` and `pyproject.toml` are required. Runs `uv sync --frozen --no-install-project` in a temporary venv: the lockfile is used as is, and the project itself is not installed. Dev dependencies are included.
+  - The SBOM contains the full dependency tree, but installing runs the dependencies' build code. This step does not receive the API key.
+- **Go**: `uses: 1024pix/check-dependency-track-action/golang@<sha>`. A `go.mod` is required. The SBOM is built with `cyclonedx-gomod app`: only the modules compiled into the `main` package.
 
 ## How it works
 
-1. `actions/setup-node`, only if `node_version` is set.
-2. Generates `sbom.json` with `cyclonedx-npm` (pinned version), CycloneDX JSON v1.5.
+1. Sets up the toolchain: `actions/setup-node` / `actions/setup-python` if a version is set, `actions/setup-go` (version from `go.mod`), `astral-sh/setup-uv` for uv.
+2. Generates `sbom.json`, CycloneDX JSON v1.5, with a pinned version of `cyclonedx-npm`, `cyclonedx-gomod` or `cyclonedx-py` (Python: `cyclonedx-py environment` on the venv, with the tool installed in its own venv so it isn't in the SBOM).
 3. `scripts/validate-sbom.sh`: downloads `cyclonedx-cli` (pinned version, SHA-256 checked) and validates the SBOM. This step does not receive the API key.
 4. `scripts/upload.sh`: uploads the SBOM, waits for Dependency-Track to process it, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
 

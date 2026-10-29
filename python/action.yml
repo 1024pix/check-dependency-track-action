@@ -1,0 +1,106 @@
+name: 'Dependency Track check - Python'
+description: 'Creates BoM and upload repository to OWASP Dependency Track to find vulnerabilities'
+branding:
+  icon: 'check-square'
+  color: 'green'
+
+inputs:
+  url:
+    description: 'URL of OWASP Dependency Track REST API'
+    required: true
+  key:
+    description: 'Key to access OWASP Dependency Track REST API'
+    required: true
+  directory:
+    description: 'Project root (for monorepos)'
+    required: false
+    default: '.'
+  package_manager:
+    description: 'pip (requirements file) or uv (uv.lock)'
+    required: true
+  requirements_file:
+    description: 'Requirements file, relative to directory (pip only)'
+    required: false
+    default: 'requirements.txt'
+  python_version:
+    description: 'Optional python version to use'
+    required: false
+    default: ''
+  basic_user:
+    description: 'Optional Basic Auth user name'
+    required: false
+    default: ''
+  basic_password:
+    description: 'Optional Basic Auth password'
+    required: false
+    default: ''
+
+outputs:
+  riskscore:
+    value: '${{ steps.upload.outputs.riskscore }}'
+    description: 'String with the risk score (weighted number of vulnerabilities)'
+  status:
+    value: '${{ steps.upload.outputs.status }}'
+    description: 'pass|warn|fail based on Dependency Track policies'
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.python_version
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python_version }}
+    - if: inputs.package_manager == 'uv'
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      with:
+        version: '0.13.1'
+    - id: compute_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SBOM_FILENAME: "sbom.json"
+        PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        REQUIREMENTS_FILE: ${{ inputs.requirements_file }}
+      run: |
+        set -euo pipefail
+        SBOM_VENV="$RUNNER_TEMP/sbom-venv"
+        CDX_VENV="$RUNNER_TEMP/cdx-venv"
+
+        # install dependencies (full tree) in an isolated venv
+        case "$PACKAGE_MANAGER" in
+          pip)
+            [ -f "$REQUIREMENTS_FILE" ] || { echo "[-] $REQUIREMENTS_FILE not found. Stopping the action!"; exit 1; }
+            python -m venv "$SBOM_VENV"
+            "$SBOM_VENV/bin/pip" install -r "$REQUIREMENTS_FILE"
+            ;;
+          uv)
+            [ -f uv.lock ] && [ -f pyproject.toml ] || { echo "[-] uv.lock or pyproject.toml not found. Stopping the action!"; exit 1; }
+            UV_PROJECT_ENVIRONMENT="$SBOM_VENV" uv sync --frozen --no-install-project
+            ;;
+          *)
+            echo "[-] package_manager must be pip or uv. Stopping the action!"; exit 1
+            ;;
+        esac
+
+        # cyclonedx-py in its own venv, so it doesn't end up in the SBOM
+        python -m venv "$CDX_VENV"
+        "$CDX_VENV/bin/pip" install cyclonedx-bom==7.5.0
+        "$CDX_VENV/bin/cyclonedx-py" environment "$SBOM_VENV" \
+          --output-format JSON --spec-version 1.5 --output-file "$SBOM_FILENAME"
+    - id: validate_sbom
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: bash "${{ github.action_path }}/../scripts/validate-sbom.sh"
+      env:
+        SBOM_FILENAME: "sbom.json"
+    - id: upload
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SBOM_FILENAME: "sbom.json"
+        DTRACK_URL: ${{ inputs.url }}
+        DTRACK_KEY: ${{ inputs.key }}
+        DIRECTORY: ${{ inputs.directory }}
+        BASIC_USER: ${{ inputs.basic_user }}
+        BASIC_PASSWORD: ${{ inputs.basic_password }}
+      run: bash "${{ github.action_path }}/../scripts/upload.sh"
