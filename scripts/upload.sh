@@ -18,7 +18,7 @@ if [[ -n "${BASIC_USER}" ]]; then
 fi
 
 DEPTRACK_RETRIES_TIMEOUT=25
-VERBOSE="--verbose"
+# VERBOSE="--verbose"
 # INSECURE="--insecure"
 
 # for monorepos : change project name with sub-directory
