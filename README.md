@@ -15,8 +15,8 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 * [x] use pinned versions of cyclonedx-npm
 * [x] use specific versions of npm
 * [x] language : node
+* [x] remove `--location` from curl calls (API key could follow a redirect to another host)
 * [ ] wire `omit_devdependencies` (`--omit dev`)
-* [ ] remove `--location` from curl calls (API key could follow a redirect to another host)
 * [ ] choose the polling endpoint according to the Dependency-Track version (`/api/v1/bom/token/` vs `/api/v1/event/token/`)
 * [ ] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
 * [x] query dependency-track with basic auth

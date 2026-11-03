@@ -8,7 +8,7 @@
 
 ## A. Action repo (`1024pix/check-dependency-track-action`)
 
-### A1. `scripts/lib.sh` (new): shared functions
+### A1. `scripts/common.sh` (new): shared functions
 - Move the code that exists today in `upload.sh` into functions:
   - `deptrack_curl`: adds `X-Api-Key` and `--user` when Basic Auth is set.
   - `deptrack_wait_tokens`: polls **several** tokens in one loop, every 10 s, up to 25 retries in total.
