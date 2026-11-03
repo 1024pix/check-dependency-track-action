@@ -8,13 +8,8 @@ deptrack_init
 
 
 # for monorepos : change project name with sub-directory
-DIRECTORY_NAME_CLEAN=$(echo "$DIRECTORY" | sed -e 's#^\(\./\)*##' -e 's#/*$##')
-if [ -z "$DIRECTORY_NAME_CLEAN" ] || [ "$DIRECTORY_NAME_CLEAN" = "." ]; then
-    PROJECT_NAME="$GITHUB_REPOSITORY"
-else
-    PROJECT_NAME="$GITHUB_REPOSITORY-$DIRECTORY_NAME_CLEAN"
-    echo "[*] Using Dependency Track project : $PROJECT_NAME"
-fi
+PROJECT_NAME=$(compute_project_name)
+echo "[*] Using Dependency Track project : $PROJECT_NAME"
 
 if [ -n "${VERBOSE:-}" ]; then
     echo "[*] DEBUG : show SBOM content :"
@@ -40,7 +35,7 @@ if [ -z "$token" ]; then
     echo "[-]  The BoM file has not been successfully processed by OWASP Dependency Track"
     exit 1
 fi
-
+check_uuid "$token"
 
 case "${WAIT_FOR_STATUS:-true}" in
   true) ;;

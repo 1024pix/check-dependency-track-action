@@ -1,16 +1,16 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=25
+DEPTRACK_RETRIES_TIMEOUT=30
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 
 deptrack_init() {
-	# register in Github runner the API KEY as a secret -> it will not be echoed in the logs
-	echo "::add-mask::$DTRACK_KEY" 
-
 	# checks
 	[[ -z "${DTRACK_URL:-}" ]] && { echo "[-] DTRACK_URL not set"; exit 1; }
 	[[ -z "${DTRACK_KEY:-}" ]] && { echo "[-] DTRACK_KEY not set"; exit 1; }
+
+	# register in Github runner the API KEY as a secret -> it will not be echoed in the logs
+	echo "::add-mask::$DTRACK_KEY" 
 
 	# prepare basic auth args and protects them from leakage in the logs
 	BASIC_AUTH_ARGS=()
@@ -33,6 +33,18 @@ check_uuid() {
 	fi
 }
 
+compute_project_name() {
+	local directory_name_clean
+	local project_name
+	directory_name_clean=$(echo "${DIRECTORY:-.}" | sed -e 's#^\(\./\)*##' -e 's#/*$##')
+	if [ -z "$directory_name_clean" ] || [ "$directory_name_clean" = "." ]; then
+		project_name="$GITHUB_REPOSITORY"
+	else
+		project_name="$GITHUB_REPOSITORY/$directory_name_clean"
+	fi
+	echo "$project_name"
+}
+
 # Wrapper for all curl calls with Basic Auth, API Key, Deptrack URL and options
 deptrack_curl() {
 	# takes out path as the first argument
@@ -45,12 +57,13 @@ deptrack_curl() {
 		"${DTRACK_URL%/}${path}"
 }
 
-# Polls Deptrack until 
+# Polls Deptrack for $DEPTRACK_RETRIES_TIMEOUT x 10s
 deptrack_wait_tokens() {
 	echo "[*] Checking BoM processing status"
 	local token="$1"
 	local c=0
-	local processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
+	local processing
+	processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
 
 	while [ "$processing" != "false" ]; do
 		sleep 10
