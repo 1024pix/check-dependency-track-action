@@ -57,6 +57,23 @@ if [ -z $token ]; then
     exit 1
 fi
 
+
+case "${WAIT_FOR_STATUS:-true}" in
+  true) ;;
+  false)
+    # compute token JSON
+    UPLOAD_JSON=$(jq -nc --arg name "$PROJECT_NAME" --arg version "$GITHUB_REF" --arg token "$token" \
+        '{name:$name, version:$version, token:$token}')
+    echo "upload=$UPLOAD_JSON" >> "$GITHUB_OUTPUT"
+    echo "[*] BoM uploaded, not waiting for processing"
+    exit 0 ;;
+  *) 
+    echo "[-] wait_for_status must be true or false"
+    exit 1 ;;
+esac
+
+#### Fetch status and results
+
 echo "[*] Checking BoM processing status"
 processing=$(curl $INSECURE $VERBOSE -s --location --fail --request GET ${DTRACK_URL%/}/api/v1/bom/token/$token \
 "${BASIC_AUTH_ARGS[@]}" --header "X-Api-Key: $DTRACK_KEY" | jq '.processing')

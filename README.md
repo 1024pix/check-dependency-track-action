@@ -22,6 +22,8 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 * [x] query dependency-track with basic auth
 * [x] language : python (pip, uv)
 * [x] language : go
+* [x] `wait_for_status` input: upload without waiting for the results
+* [ ] `fetch` action: one job that fetches the results of several `upload_json` outputs
 
 ## Input variables
 
@@ -41,13 +43,20 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
   - **python_version**: (optional) Python version to install with `actions/setup-python`. Default = empty, which keeps the runner's Python.
 - **basic_user**: (optional) Basic Auth username, if Dependency-Track sits behind a reverse proxy requiring it.
 - **basic_password**: (optional) Basic Auth password. Required if `basic_user` is set. Store it as a secret, and only use it over HTTPS.
+- **wait_for_status**: (optional) `true` or `false`. Default = `true`.
+  * `true`: waits for Dependency-Track to process the SBOM, then sets `riskscore` and `status` and writes the job summary.
+  * `false`: returns right after the upload and only sets `upload_json`. `riskscore` and `status` stay empty, and no job summary is written.
 
 ## Output variables
 
 - **riskscore**: the risk score calculated by OWASP Dependency-Track based on the vulnerabilities found. It can be used to make decisions, such as notifying the developer, or as the input of the next step of the workflow.
 - **status**: `pass`, `warn` or `fail`, based on the Dependency-Track [policy violations](https://docs.dependencytrack.org/usage/policy-compliance/) of the project. Without policies configured in Dependency-Track, it is always `pass`.
+- **upload_json**: only set when `wait_for_status` is `false`. A one-line JSON with the Dependency-Track project and the upload token, so a later job can fetch the results:
+  ```json
+  {"name":"1024pix/pix-api","version":"refs/pull/12/merge","token":"<uuid>"}
+  ```
 
-The action also writes a summary (vulnerabilities by severity, risk score, status) to the [job summary](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary) of the workflow run.
+With `wait_for_status: true`, the action also writes a summary (vulnerabilities by severity, risk score, status) to the [job summary](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary) of the workflow run.
 
 ## Supported languages
 
@@ -63,7 +72,9 @@ The action also writes a summary (vulnerabilities by severity, risk score, statu
 1. Sets up the toolchain: `actions/setup-node` / `actions/setup-python` if a version is set, `actions/setup-go` (version from `go.mod`), `astral-sh/setup-uv` for uv.
 2. Generates `sbom.json`, CycloneDX JSON v1.5, with a pinned version of `cyclonedx-npm`, `cyclonedx-gomod` or `cyclonedx-py` (Python: `cyclonedx-py environment` on the venv, with the tool installed in its own venv so it isn't in the SBOM).
 3. `scripts/validate-sbom.sh`: downloads `cyclonedx-cli` (pinned version, SHA-256 checked) and validates the SBOM. This step does not receive the API key.
-4. `scripts/upload.sh`: uploads the SBOM, waits for Dependency-Track to process it, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
+4. `scripts/upload.sh`: uploads the SBOM.
+   - `wait_for_status: true`: waits for Dependency-Track to process the SBOM, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
+   - `wait_for_status: false`: stops after the upload and sets `upload_json`.
 
 ## How to use it
 

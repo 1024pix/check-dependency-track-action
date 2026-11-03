@@ -34,6 +34,10 @@ inputs:
     description: 'Optional Basic Auth password'
     required: false
     default: ''
+  wait_for_status:
+    description: 'Wait for DepTrack to process SBOM and return the risk score and status'
+    required: false
+    default: 'true'
 
 outputs:
   riskscore:
@@ -42,6 +46,9 @@ outputs:
   status:
     value: '${{ steps.upload.outputs.status }}'
     description: 'pass|warn|fail based on Dependency Track policies'
+  upload_json:
+    value: '${{ steps.upload.outputs.upload }}'
+    description: 'JSON {name, version, token} for the fetch action (when wait_for_status is false)'
 
 runs:
   using: composite
@@ -101,6 +108,7 @@ runs:
         DTRACK_URL: ${{ inputs.url }}
         DTRACK_KEY: ${{ inputs.key }}
         DIRECTORY: ${{ inputs.directory }}
+        WAIT_FOR_STATUS: ${{ inputs.wait_for_status }}
         BASIC_USER: ${{ inputs.basic_user }}
         BASIC_PASSWORD: ${{ inputs.basic_password }}
       run: bash "${{ github.action_path }}/../scripts/upload.sh"
