@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=25
+DEPTRACK_RETRIES_TIMEOUT=30
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 
@@ -31,6 +31,16 @@ check_uuid() {
 		echo "[-] token is not a UUID"
 		exit 1
 	fi
+}
+
+compute_project_name() {
+	DIRECTORY_NAME_CLEAN=$(echo "$DIRECTORY" | sed -e 's#^\(\./\)*##' -e 's#/*$##')
+	if [ -z "$DIRECTORY_NAME_CLEAN" ] || [ "$DIRECTORY_NAME_CLEAN" = "." ]; then
+		PROJECT_NAME="$GITHUB_REPOSITORY"
+	else
+		PROJECT_NAME="$GITHUB_REPOSITORY/$DIRECTORY_NAME_CLEAN"
+	fi
+	echo "$PROJECT_NAME"
 }
 
 # Wrapper for all curl calls with Basic Auth, API Key, Deptrack URL and options
