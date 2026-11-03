@@ -35,7 +35,6 @@ if [ -z "$token" ]; then
     echo "[-]  The BoM file has not been successfully processed by OWASP Dependency Track"
     exit 1
 fi
-check_uuid "$token"
 
 case "${WAIT_FOR_STATUS:-true}" in
   true) ;;
@@ -56,7 +55,8 @@ deptrack_wait_tokens "$token"
 
 echo "[*] OWASP Dependency Track processing completed"
 
-# wait to make sure the score is available, some errors found during tests w/o this wait
+# from previous versions : wait to make sure the score is available, 
+# some errors found during tests w/o this wait
 sleep 10
 
 echo "[*] Retrieving project information"
@@ -72,12 +72,7 @@ echo "Project risk score: $risk_score"
 
 echo "riskscore=$risk_score" >> "$GITHUB_OUTPUT"
 
-# returns a status value based on policies (pass/warn/fail)
-fail=$(jq -r '.metrics.policyViolationsFail // 0' <<<"$project")
-warn=$(jq -r '.metrics.policyViolationsWarn // 0' <<<"$project")
-if   (( fail > 0 )); then status=fail
-elif (( warn > 0 )); then status=warn
-else status=pass; fi
+status=$(compile_project_status "$project")
 echo "status=$status" >> "$GITHUB_OUTPUT"
 
 {

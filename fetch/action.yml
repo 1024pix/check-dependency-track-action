@@ -1,0 +1,50 @@
+name: 'Dependency Track results fetch'
+description: 'Checks OWASP Dependency Track stats for a list of project'
+branding:
+  icon: 'check-square'  
+  color: 'green'
+
+inputs:
+  url:  
+    description: 'URL of OWASP Dependency Track REST API'
+    required: true
+  key:
+    description: 'Key to access OWASP Dependency Track REST API'
+    required: true
+  basic_user:
+    description: 'Optional Basic Auth user name'
+    required: false
+    default: ''
+  basic_password:
+    description: 'Optional Basic Auth password'
+    required: false
+    default: ''
+  projects:
+    description: 'One JSON line per project (the upload outputs). Empty lines are ignored, because a failed upload job gives an empty output.'
+    required: false
+    default: 'true'
+
+outputs:
+  results:
+    value: '${{ steps.upload.outputs.results }}'
+    description: 'JSON array with one entry per project'
+  status:
+    value: '${{ steps.upload.outputs.status }}'
+    description: 'pass|warn|fail based on Dependency Track policies'
+  markdown:
+    value: '${{ steps.upload.outputs.markdown }}'
+    description: 'JSON {name, version, token} for the fetch action (when wait_for_status is false)'
+
+runs:
+  using: composite
+  steps: 
+    - id: upload
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        DTRACK_URL: ${{ inputs.url }}
+        DTRACK_KEY: ${{ inputs.key }}
+        BASIC_USER: ${{ inputs.basic_user }}
+        BASIC_PASSWORD: ${{ inputs.basic_password }}
+        PROJECTS_JSON: ${{ inputs.projects }}
+      run: bash "${{ github.action_path }}/../scripts/fetch.sh"

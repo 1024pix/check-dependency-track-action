@@ -57,29 +57,51 @@ deptrack_curl() {
 		"${DTRACK_URL%/}${path}"
 }
 
-# Polls Deptrack for $DEPTRACK_RETRIES_TIMEOUT x 10s
+# Polls Deptrack for a list of UUIDs during $DEPTRACK_RETRIES_TIMEOUT x 10s
 deptrack_wait_tokens() {
-	echo "[*] Checking BoM processing status"
-	local token="$1"
-	local c=0
-	local processing
-	processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
+	(( $# > 0 )) || { echo "[-] deptrack_wait_tokens: no token"; exit 1; }
+	local pending=("$@") 
+	local remaining_tokens token processing
 
-	while [ "$processing" != "false" ]; do
+	# loop over the tokens to validate their format
+	for token in "${pending[@]}"; do check_uuid "$token"; done
+
+	echo "[*] Waiting for ${#pending[@]} BoM(s) to be processed"
+	local count=0
+	# processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
+
+	while true; do
 		sleep 10
-		processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
-		c=$((c + 1))
-		if [ "$c" -eq "$DEPTRACK_RETRIES_TIMEOUT" ]; then
-			echo "[-]  Timeout while waiting for processing result. Please check the OWASP Dependency Track status."
+		remaining_tokens=()
+		# loop over all tokens
+		for token in  "${pending[@]}"; do
+			processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET \
+				| jq '.processing')
+			[[ "$processing" == "false" ]] || remaining_tokens+=("$token")
+		done
+		# if remaining_tokens is not null, continue to loop
+		(( ${#remaining_tokens[@]} == 0 )) && break
+		pending=("${remaining_tokens[@]}")
+		
+		count=$((count + 1))
+		if [ "$count" -eq "$DEPTRACK_RETRIES_TIMEOUT" ]; then
+			echo "[-]  Timeout while waiting for processing result. ${#pending[@]} BoM(s) still processing Please check the OWASP Dependency Track status."
 			exit 1
 		fi
 	done
 }
 
+# returns a status value based on policies (pass/warn/fail)
+compile_project_status() {
+	local PROJECT_ANALYSIS=$1
+	local fail warn
+	fail=$(jq -r '.metrics.policyViolationsFail // 0' <<<"$PROJECT_ANALYSIS")
+	warn=$(jq -r '.metrics.policyViolationsWarn // 0' <<<"$PROJECT_ANALYSIS")
+	if   (( fail > 0 )); then echo "fail"
+	elif (( warn > 0 )); then echo "warn"
+	else echo "pass"; fi
+}
 
-# deptrack_lookup() {
-
-# }
 # deptrack_markdown_row() {
 
 # }
