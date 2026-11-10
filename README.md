@@ -12,39 +12,40 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 
 ## TODO
 
-* [x] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
 * [x] `wait_for_status` input: upload without waiting for the results
 * [x] `fetch` action: one job that fetches the results of several `upload_json` outputs
 * [ ] wire `omit_devdependencies` (`--omit dev`)
 * [ ] choose the polling endpoint according to the Dependency-Track version (`/api/v1/bom/token/` vs `/api/v1/event/token/`)
 
-## Recent breaking change: project names
+## Upload action
+
+### Recent breaking change: project names
 
 Monorepo projects used to be named `<owner>/<repo>-<directory>`. They are now named `<owner>/<repo>/<directory>`. On the first run after the upgrade, Dependency-Track creates a **new** project. The old one keeps its history, audit decisions and suppressions, but is no longer updated: migrate what you need, then delete it.
 
-## Input variables
+### Input variables
 
 - **url**: (required) URL of the OWASP Dependency-Track server. Use the final `https://` URL: redirects are not followed.
 - **key**: (required) API key used to access the OWASP Dependency-Track server.
-  * This key is confidential, so [store it as a secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) in the project settings. The example below uses the name `SECRET_OWASP_DT_KEY`.
-  * Permissions needed: `BOM_UPLOAD`, `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, nothing else.
+    * This key is confidential, so [store it as a secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) in the project settings. The example below uses the name `SECRET_OWASP_DT_KEY`.
+    * Permissions needed: `BOM_UPLOAD`, `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, nothing else.
 - **directory**: (optional) for monorepos, the sub-directory containing `package-lock.json`, `go.mod`, `requirements.txt` or `uv.lock`. Default = `.`
 - Node.js only:
-  - **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
-  - **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
+    * **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
+    * **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
 - Go only:
-  - **main**: (optional) path to the `main` package, relative to `directory` (e.g. `cmd/server`). Default = `.`
+    * **main**: (optional) path to the `main` package, relative to `directory` (e.g. `cmd/server`). Default = `.`
 - Python only:
-  - **package_manager**: (required) `pip` or `uv`.
-  - **requirements_file**: (optional, pip only) requirements file, relative to `directory`. Default = `requirements.txt`
-  - **python_version**: (optional) Python version to install with `actions/setup-python`. Default = empty, which keeps the runner's Python.
+    * **package_manager**: (required) `pip` or `uv`.
+    * **requirements_file**: (optional, pip only) requirements file, relative to `directory`. Default = `requirements.txt`
+    * **python_version**: (optional) Python version to install with `actions/setup-python`. Default = empty, which keeps the runner's Python.
 - **basic_user**: (optional) Basic Auth username, if Dependency-Track sits behind a reverse proxy requiring it.
 - **basic_password**: (optional) Basic Auth password. Required if `basic_user` is set. Store it as a secret, and only use it over HTTPS.
 - **wait_for_status**: (optional) `true` or `false`. Default = `true`.
-  * `true`: waits for Dependency-Track to process the SBOM, then sets `riskscore` and `status` and writes the job summary.
-  * `false`: returns right after the upload and only sets `upload_json`. `riskscore` and `status` stay empty, and no job summary is written.
+    * `true`: waits for Dependency-Track to process the SBOM, then sets `riskscore` and `status` and writes the job summary.
+    * `false`: returns right after the upload and only sets `upload_json`. `riskscore` and `status` stay empty, and no job summary is written.
 
-## Output variables
+### Output variables
 
 - **riskscore**: the risk score calculated by OWASP Dependency-Track based on the vulnerabilities found. It can be used to make decisions, such as notifying the developer, or as the input of the next step of the workflow.
 - **status**: `pass`, `warn` or `fail`, based on the Dependency-Track [policy violations](https://docs.dependencytrack.org/usage/policy-compliance/) of the project. Without policies configured in Dependency-Track, it is always `pass`.
@@ -61,11 +62,12 @@ With `wait_for_status: true`, the action also writes a summary (vulnerabilities 
 
 Fetches the results of several uploads made with `wait_for_status: false`, in a single job. All tokens are polled in the same loop, so the wait is the slowest project's, not the sum of all of them.
 
-Inputs:
+### Inputs:
 - **url**, **key**, **basic_user**, **basic_password**: same as above. This job runs no third-party code, so it can receive the key.
+    * key should have "BOM_UPLOAD" and "VIEW_PORTFOLIO" permissions.
 - **projects**: (required) the `upload_json` outputs, one per line. Empty lines are ignored (a failed upload job gives an empty output).
 
-Outputs:
+### Outputs:
 - **status**: the worst status of all projects (`fail` > `warn` > `pass`).
 - **results**: a JSON array, one entry per project:
   ```json

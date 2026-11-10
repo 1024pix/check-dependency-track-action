@@ -46,7 +46,7 @@ for line in "${lines_json[@]}"; do
 	RESULTS+=("$(jq -nc --arg name "$name" --arg version "$version" \
 		--argjson risk_score "$project_risk_score" --arg status "$project_status" \
 		'{name:$name, version:$version, risk_score:$risk_score, status:$status}')")
-	RESULTS_TABLE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($project_risk_score) |"' <<<"$project_result")")
+	RESULTS_TABLE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($risk_score) |"' <<<"$project_result")")
 done
 
 # Global output

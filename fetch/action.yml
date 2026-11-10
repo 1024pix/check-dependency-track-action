@@ -9,7 +9,7 @@ inputs:
     description: 'URL of OWASP Dependency Track REST API'
     required: true
   key:
-    description: 'Key to access OWASP Dependency Track REST API, with "BOM_UPLOAD" permission.'
+    description: 'Key to access OWASP Dependency Track REST API, with "BOM_UPLOAD" and "VIEW_PORTFOLIO" permissions.'
     required: true
   projects:
     description: 'One JSON line per project (the upload outputs). Empty lines are ignored, because a failed upload job gives an empty output.'
