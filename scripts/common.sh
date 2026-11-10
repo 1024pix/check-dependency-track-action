@@ -68,7 +68,7 @@ deptrack_wait_tokens() {
 
 	echo "[*] Waiting for ${#pending[@]} BoM(s) to be processed"
 	local count=0
-	# processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
+	processing=$(deptrack_curl "/api/v1/bom/token/$token" --request GET | jq '.processing')
 
 	while true; do
 		sleep 10

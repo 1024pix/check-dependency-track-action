@@ -42,11 +42,11 @@ for line in "${lines_json[@]}"; do
 	fi
 
 	project_risk_score=$(jq '.lastInheritedRiskScore // null' <<<"$project_result")
-	
+
 	RESULTS+=("$(jq -nc --arg name "$name" --arg version "$version" \
-        --argjson risk_score "$project_risk_score" --arg status "$project_status" \
+		--argjson risk_score "$project_risk_score" --arg status "$project_status" \
 		'{name:$name, version:$version, risk_score:$risk_score, status:$status}')")
-	RESULTS_TABLE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \(.inheritedRiskScore // 0) |"' <<<"$project_result")")
+	RESULTS_TABLE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($project_risk_score) |"' <<<"$project_result")")
 done
 
 # Global output
@@ -66,4 +66,4 @@ delim="EOF_$(openssl rand -hex 16)"
 	echo "$delim"
 } >> "$GITHUB_OUTPUT"
 
-printf '%s\n' "$markdown" >> "$GITHUB_STEP_SUMMARY"
+printf '%s\n' "$RESULTS_MARKDOWN" >> "$GITHUB_STEP_SUMMARY"

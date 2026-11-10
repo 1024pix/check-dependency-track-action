@@ -9,7 +9,10 @@ inputs:
     description: 'URL of OWASP Dependency Track REST API'
     required: true
   key:
-    description: 'Key to access OWASP Dependency Track REST API'
+    description: 'Key to access OWASP Dependency Track REST API, with "BOM_UPLOAD" permission.'
+    required: true
+  projects:
+    description: 'One JSON line per project (the upload outputs). Empty lines are ignored, because a failed upload job gives an empty output.'
     required: true
   basic_user:
     description: 'Optional Basic Auth user name'
@@ -19,10 +22,6 @@ inputs:
     description: 'Optional Basic Auth password'
     required: false
     default: ''
-  projects:
-    description: 'One JSON line per project (the upload outputs). Empty lines are ignored, because a failed upload job gives an empty output.'
-    required: false
-    default: 'true'
 
 outputs:
   results:
@@ -33,14 +32,13 @@ outputs:
     description: 'pass|warn|fail based on Dependency Track policies'
   markdown:
     value: '${{ steps.upload.outputs.markdown }}'
-    description: 'JSON {name, version, token} for the fetch action (when wait_for_status is false)'
+    description: 'Markdown table with structured scores and indicators'
 
 runs:
   using: composite
   steps: 
     - id: upload
       shell: bash
-      working-directory: ${{ inputs.directory }}
       env:
         DTRACK_URL: ${{ inputs.url }}
         DTRACK_KEY: ${{ inputs.key }}

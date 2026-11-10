@@ -4,7 +4,7 @@ This GitHub action generates an SBOM (Software Bill Of Materials) of your projec
 
 Dependency-Track lets you customize the vulnerability sources, follow the status of each project version in its web UI, and check the licenses of the libraries your project uses.
 
-The project is uploaded to Dependency-Track using the repository name as `project` (suffixed with the sub-directory for monorepos) and the Git ref as `version`. The SBOM is generated directly in **CycloneDX JSON, spec v1.5**, supported by Dependency-Track v4.0.0 and higher. No XML to JSON conversion is needed anymore. During the test phase, the SBOM is validated with [CycloneDX CLI](https://github.com/CycloneDX/cyclonedx-cli) before upload.
+The project is uploaded to Dependency-Track using the repository name as `project` (`<owner>/<repo>`, or `<owner>/<repo>/<directory>` for monorepos) and the Git ref as `version`. The SBOM is generated directly in **CycloneDX JSON, spec v1.5**, supported by Dependency-Track v4.0.0 and higher. No XML to JSON conversion is needed anymore. During the test phase, the SBOM is validated with [CycloneDX CLI](https://github.com/CycloneDX/cyclonedx-cli) before upload.
 
 ## Fork history
 
@@ -12,22 +12,19 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 
 ## TODO
 
-* [x] use pinned versions of cyclonedx-npm
-* [x] use specific versions of npm
-* [x] language : node
-* [x] remove `--location` from curl calls (API key could follow a redirect to another host)
+* [x] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
+* [x] `wait_for_status` input: upload without waiting for the results
+* [x] `fetch` action: one job that fetches the results of several `upload_json` outputs
 * [ ] wire `omit_devdependencies` (`--omit dev`)
 * [ ] choose the polling endpoint according to the Dependency-Track version (`/api/v1/bom/token/` vs `/api/v1/event/token/`)
-* [ ] end of test phase: disable verbose output / SBOM dump, add a `validate_sbom` input
-* [x] query dependency-track with basic auth
-* [x] language : python (pip, uv)
-* [x] language : go
-* [x] `wait_for_status` input: upload without waiting for the results
-* [ ] `fetch` action: one job that fetches the results of several `upload_json` outputs
+
+## Recent breaking change: project names
+
+Monorepo projects used to be named `<owner>/<repo>-<directory>`. They are now named `<owner>/<repo>/<directory>`. On the first run after the upgrade, Dependency-Track creates a **new** project. The old one keeps its history, audit decisions and suppressions, but is no longer updated: migrate what you need, then delete it.
 
 ## Input variables
 
-- **url**: (required) URL of the OWASP Dependency-Track server.
+- **url**: (required) URL of the OWASP Dependency-Track server. Use the final `https://` URL: redirects are not followed.
 - **key**: (required) API key used to access the OWASP Dependency-Track server.
   * This key is confidential, so [store it as a secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) in the project settings. The example below uses the name `SECRET_OWASP_DT_KEY`.
   * Permissions needed: `BOM_UPLOAD`, `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, nothing else.
@@ -58,6 +55,24 @@ This repo is a hard fork from https://github.com/Quobis/action-owasp-dependecy-t
 
 With `wait_for_status: true`, the action also writes a summary (vulnerabilities by severity, risk score, status) to the [job summary](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary) of the workflow run.
 
+## Fetch action
+
+`uses: 1024pix/check-dependency-track-action/fetch@<sha>`
+
+Fetches the results of several uploads made with `wait_for_status: false`, in a single job. All tokens are polled in the same loop, so the wait is the slowest project's, not the sum of all of them.
+
+Inputs:
+- **url**, **key**, **basic_user**, **basic_password**: same as above. This job runs no third-party code, so it can receive the key.
+- **projects**: (required) the `upload_json` outputs, one per line. Empty lines are ignored (a failed upload job gives an empty output).
+
+Outputs:
+- **status**: the worst status of all projects (`fail` > `warn` > `pass`).
+- **results**: a JSON array, one entry per project:
+  ```json
+  [{"name":"1024pix/pix/api","version":"refs/pull/12/merge","risk_score":12,"status":"pass"}]
+  ```
+- **markdown**: a table with one row per project (project, status, Critical, High, Medium, Low, risk score). The same table is written to the job summary.
+
 ## Supported languages
 
 - **Node.js**: `uses: 1024pix/check-dependency-track-action/node@<sha>`. A `package-lock.json` is required. The SBOM is built from the lockfile only (`--package-lock-only`): nothing is installed and no install scripts are run.
@@ -75,6 +90,9 @@ With `wait_for_status: true`, the action also writes a summary (vulnerabilities 
 4. `scripts/upload.sh`: uploads the SBOM.
    - `wait_for_status: true`: waits for Dependency-Track to process the SBOM, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
    - `wait_for_status: false`: stops after the upload and sets `upload_json`.
+5. `scripts/fetch.sh` (fetch action only): checks each token is a UUID, polls all of them until processed, then looks up each project and builds `status`, `results`, `markdown` and the job summary.
+
+`scripts/common.sh` holds the code shared by `upload.sh` and `fetch.sh` (env checks and secret masking, curl wrapper, polling, status).
 
 ## How to use it
 
@@ -149,3 +167,73 @@ About the PR comment step:
 The same example is available in `example-action.yaml` in this repository.
 
 + Commit the workflow file. The workflow runs on every push to `main` and on every pull request, and the results appear in your Dependency-Track server.
+
+### Several projects: upload without waiting, fetch once
+
+For monorepos with many projects, waiting in each job costs several billed minutes per job. Upload with `wait_for_status: false`, then fetch all the results in one job:
+
+```yaml
+name: Dependency-Track check
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  sbom_api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      upload: ${{ steps.dtrack.outputs.upload_json }}
+    steps:
+      - uses: actions/checkout@<sha> # v7
+        with:
+          persist-credentials: false
+      - id: dtrack
+        uses: 1024pix/check-dependency-track-action/node@<sha>
+        with:
+          url: '${{ secrets.DEPENDENCYTRACK_URL }}'
+          key: '${{ secrets.DEPENDENCYTRACK_APIKEY }}'
+          directory: 'api'
+          wait_for_status: 'false'
+
+  # sbom_front: same as sbom_api, with directory: 'front'
+
+  fetch_results:
+    runs-on: ubuntu-latest
+    needs: [sbom_api, sbom_front]
+    if: ${{ !cancelled() }}
+    permissions: {}
+    outputs:
+      status: ${{ steps.fetch.outputs.status }}
+      markdown: ${{ steps.fetch.outputs.markdown }}
+    steps:
+      - id: fetch
+        uses: 1024pix/check-dependency-track-action/fetch@<sha>
+        with:
+          url: '${{ secrets.DEPENDENCYTRACK_URL }}'
+          key: '${{ secrets.DEPENDENCYTRACK_APIKEY }}'
+          projects: |
+            ${{ needs.sbom_api.outputs.upload }}
+            ${{ needs.sbom_front.outputs.upload }}
+
+  comment_on_pr:
+    runs-on: ubuntu-latest
+    needs: fetch_results
+    if: ${{ !cancelled() && needs.fetch_results.outputs.status != '' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          MD: ${{ needs.fetch_results.outputs.markdown }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          printf '%s\n' "$MD" > "$RUNNER_TEMP/body.md"
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none \
+            --body-file "$RUNNER_TEMP/body.md"
+```
+
+The key only reaches the upload step of each SBOM job and the fetch job. The write token only reaches the comment job.
