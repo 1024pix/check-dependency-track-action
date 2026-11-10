@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=30
+DEPTRACK_RETRIES_TIMEOUT=40
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 
@@ -87,6 +87,7 @@ deptrack_wait_tokens() {
 			echo "[-]  Timeout while waiting for processing result. ${#pending[@]} BoM(s) still processing Please check the OWASP Dependency Track status."
 			exit 1
 		fi
+		echo "[*] Waiting for remaining ${#pending[@]} BoM(s) to be processed"
 	done
 }
 
