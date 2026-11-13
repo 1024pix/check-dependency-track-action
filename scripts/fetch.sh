@@ -51,10 +51,11 @@ done
 
 # Global output
 RESULTS_MARKDOWN=$(
-	echo "### Dependency-Track: ${GLOBAL_STATUS}"
+	echo "### Dependency-Track: ${GLOBAL_STATUS} (last run : $(date +"%Y-%m-%d %H:%M:%S"))"
 	echo "| Project | Status | Critical | High | Medium | Low | Risk score |"
 	echo "|---|---|---|---|---|---|---|"
 	printf '%s\n' "${RESULTS_TABLE[@]}"
+	echo "> Le statut (pass/warn/fail) dépend des policies actives sur la plateforme pour chaque repo"
 )
 
 delim="EOF_$(openssl rand -hex 16)"
