@@ -11,6 +11,12 @@ deptrack_init
 PROJECT_NAME=$(compute_project_name)
 echo "[*] Using Dependency Track project : $PROJECT_NAME"
 
+# Mark default branch (main/master/dev) as the latest version in Dependency-Track
+case "$GITHUB_REF" in
+  refs/heads/main|refs/heads/master|refs/heads/dev) IS_LATEST=true ;;
+  *) IS_LATEST=false ;;
+esac
+
 if [ -n "${VERBOSE:-}" ]; then
     echo "[*] DEBUG : show SBOM content :"
     echo "------ BEGIN SBOM ----"
@@ -25,6 +31,7 @@ upload_bom_response=$(deptrack_curl /api/v1/bom --request POST  \
     --form "autoCreate=true" \
     --form "projectName=$PROJECT_NAME" \
     --form "projectVersion=$GITHUB_REF" \
+    --form "isLatest=$IS_LATEST" \
     --form "bom=@$SBOM_FILENAME")
 
 token=$(echo "$upload_bom_response" | jq ".token // empty" | tr -d "\"")
