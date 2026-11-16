@@ -73,7 +73,8 @@ Fetches the results of several uploads made with `wait_for_status: false`, in a 
   ```json
   [{"name":"1024pix/pix/api","version":"refs/pull/12/merge","risk_score":12,"status":"pass"}]
   ```
-- **markdown**: a table with one row per project (project, status, Critical, High, Medium, Low, risk score). The same table is written to the job summary.
+- **markdown**: a short table with one row per project (project, status, Critical vulns).
+- **markdown_verbose**: a longer table with one row per project (project, status, Critical, High, Medium, Low, risk score). The same table is written to the job summary.
 
 ## Supported languages
 

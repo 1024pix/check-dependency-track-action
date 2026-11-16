@@ -31,8 +31,11 @@ outputs:
     value: '${{ steps.upload.outputs.status }}'
     description: 'pass|warn|fail based on Dependency Track policies'
   markdown:
-    value: '${{ steps.upload.outputs.markdown }}'
-    description: 'Markdown table with structured scores and indicators'
+    value: '${{ steps.upload.outputs.markdown_short }}'
+    description: 'Markdown table with scores and critical vulns'
+  markdown_verbose:
+    value: '${{ steps.upload.outputs.markdown_verbose }}'
+    description: 'Markdown table, more detailed, with structured scores and indicators'
 
 runs:
   using: composite

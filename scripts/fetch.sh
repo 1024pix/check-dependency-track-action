@@ -21,7 +21,8 @@ sleep 10
 # Fetch results
 mapfile -t lines_json <<<"$PROJECTS_JSON"
 RESULTS=()
-RESULTS_TABLE=()
+RESULTS_TABLE_SHORT=()
+RESULTS_TABLE_VERBOSE=()
 GLOBAL_STATUS=pass
 
 for line in "${lines_json[@]}"; do
@@ -46,26 +47,37 @@ for line in "${lines_json[@]}"; do
 	RESULTS+=("$(jq -nc --arg name "$name" --arg version "$version" \
 		--argjson risk_score "$project_risk_score" --arg status "$project_status" \
 		'{name:$name, version:$version, risk_score:$risk_score, status:$status}')")
-	RESULTS_TABLE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($risk_score) |"' <<<"$project_result")")
+	RESULTS_TABLE_VERBOSE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($risk_score) |"' <<<"$project_result")")
+	RESULTS_TABLE_SHORT+=("$(jq --arg name "$name" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) |"' <<<"$project_result")")
 done
 
 # Global output
-RESULTS_MARKDOWN=$(
+RESULTS_MARKDOWN_VERBOSE=$(
 	echo "### Dependency-Track: ${GLOBAL_STATUS}"
 	echo "| Project | Status | Critical | High | Medium | Low | Risk score |"
 	echo "|---|---|---|---|---|---|---|"
-	printf '%s\n' "${RESULTS_TABLE[@]}"
+	printf '%s\n' "${RESULTS_TABLE_VERBOSE[@]}"
 	echo "(last run : $(date +"%Y-%m-%d %H:%M:%S"))"
-	echo "> Le statut (pass/warn/fail) dépend des policies actives sur la plateforme pour chaque repo"
 )
 
-delim="EOF_$(openssl rand -hex 16)"
+RESULTS_MARKDOWN_SHORT=$(
+	echo "### Dependency-Track: ${GLOBAL_STATUS}"
+	echo "| Project | Status | Critical |"
+	echo "|---|---|---|"
+	printf '%s\n' "${RESULTS_TABLE_SHORT[@]}"
+)
+
+delim_short="EOF_$(openssl rand -hex 16)"
+delim_verbose="EOF_$(openssl rand -hex 16)"
 {
 	echo "status=$GLOBAL_STATUS"
 	echo "results=$(printf '%s\n' "${RESULTS[@]}" | jq -sc .)"
-	echo "markdown<<$delim"
-	printf '%s\n' "$RESULTS_MARKDOWN"
-	echo "$delim"
+	echo "markdown_verbose<<$delim_verbose"
+	printf '%s\n' "$RESULTS_MARKDOWN_VERBOSE"
+	echo "$delim_verbose"
+	echo "markdown_short<<$delim_short"
+	printf '%s\n' "$RESULTS_MARKDOWN_SHORT"
+	echo "$delim_short"
 } >> "$GITHUB_OUTPUT"
 
-printf '%s\n' "$RESULTS_MARKDOWN" >> "$GITHUB_STEP_SUMMARY"
+printf '%s\n' "$RESULTS_MARKDOWN_VERBOSE" >> "$GITHUB_STEP_SUMMARY"
