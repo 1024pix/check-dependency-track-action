@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=40
+DEPTRACK_RETRIES_TIMEOUT=60
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 
@@ -55,6 +55,12 @@ deptrack_curl() {
 		--header "X-Api-Key: $DTRACK_KEY" \
 		"$@" \
 		"${DTRACK_URL%/}${path}"
+}
+
+deptrack_project_exists() {
+	deptrack_curl "/api/v1/project/lookup" --get \
+			--data-urlencode "name=$1" \
+			--data-urlencode "version=$2" >/dev/null 2>&1
 }
 
 # Polls Deptrack for a list of UUIDs during $DEPTRACK_RETRIES_TIMEOUT x 10s

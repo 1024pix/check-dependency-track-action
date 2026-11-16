@@ -31,6 +31,10 @@ inputs:
     description: 'Wait for DepTrack to process SBOM and return the risk score and status'
     required: false
     default: 'true'
+  default_branch:
+    description: 'Branch flagged as parent project, other branches are uploaded as its children'
+    required: false
+    default: "${{ github.event.repository.default_branch }}"
 
 outputs:
   riskscore:
@@ -78,4 +82,5 @@ runs:
         WAIT_FOR_STATUS: ${{ inputs.wait_for_status }}
         BASIC_USER: ${{ inputs.basic_user }}
         BASIC_PASSWORD: ${{ inputs.basic_password }}
+        DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: bash "${{ github.action_path }}/../scripts/upload.sh"

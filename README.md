@@ -44,6 +44,17 @@ Monorepo projects used to be named `<owner>/<repo>-<directory>`. They are now na
 - **wait_for_status**: (optional) `true` or `false`. Default = `true`.
     * `true`: waits for Dependency-Track to process the SBOM, then sets `riskscore` and `status` and writes the job summary.
     * `false`: returns right after the upload and only sets `upload_json`. `riskscore` and `status` stay empty, and no job summary is written.
+- **default_branch**: (optional) the repository's main branch, without `refs/heads/`. Default = the repository's default branch (`github.event.repository.default_branch`). The action fails if it is empty. See [Versions and parent project](#versions-and-parent-project).
+
+### Versions and parent project
+
+To keep the Dependency-Track console readable, versions are organised around the default branch:
+
+- **Default branch** (`refs/heads/<default_branch>`): uploaded with `isLatest=true`. Dependency-Track keeps one latest version per project name, so it can be read with `GET /api/v1/project/latest/{name}`.
+- **Any other ref** (PRs, feature branches, tags): uploaded with `isLatest=false`, as a **child** of the default branch version (`parentName` = project name, `parentVersion` = `refs/heads/<default_branch>`). In the project list (tree view), these versions are nested under the default branch.
+- If the default branch version does not exist yet in Dependency-Track (e.g. a PR runs before the first push on the default branch), the SBOM is uploaded without a parent and a warning is shown in the workflow run.
+
+Dependency-Track only applies `isLatest` and the parent when it **creates** a project version (`autoCreate`). Versions that already existed before this change are not updated: set them once in the UI if needed.
 
 ### Output variables
 
@@ -90,7 +101,7 @@ Fetches the results of several uploads made with `wait_for_status: false`, in a 
 1. Sets up the toolchain: `actions/setup-node` / `actions/setup-python` if a version is set, `actions/setup-go` (version from `go.mod`), `astral-sh/setup-uv` for uv.
 2. Generates `sbom.json`, CycloneDX JSON v1.5, with a pinned version of `cyclonedx-npm`, `cyclonedx-gomod` or `cyclonedx-py` (Python: `cyclonedx-py environment` on the venv, with the tool installed in its own venv so it isn't in the SBOM).
 3. `scripts/validate-sbom.sh`: downloads `cyclonedx-cli` (pinned version, SHA-256 checked) and validates the SBOM. This step does not receive the API key.
-4. `scripts/upload.sh`: uploads the SBOM.
+4. `scripts/upload.sh`: uploads the SBOM, with `isLatest=true` on the default branch, or under the default branch version as parent on any other ref (if that version exists).
    - `wait_for_status: true`: waits for Dependency-Track to process the SBOM, then reads the project's risk score and policy violations. It sets the `riskscore` and `status` outputs and writes the job summary.
    - `wait_for_status: false`: stops after the upload and sets `upload_json`.
 5. `scripts/fetch.sh` (fetch action only): checks each token is a UUID, polls all of them until processed, then looks up each project and builds `status`, `results`, `markdown` and the job summary.

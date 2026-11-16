@@ -9,13 +9,24 @@ deptrack_init
 
 # for monorepos : change project name with sub-directory
 PROJECT_NAME=$(compute_project_name)
+[[ -z "${DEFAULT_BRANCH:-}" ]] && { echo "[-] DEFAULT_BRANCH not set"; exit 1; }
 echo "[*] Using Dependency Track project : $PROJECT_NAME"
 
-# Mark default branch (main/master/dev) as the latest version in Dependency-Track
-case "$GITHUB_REF" in
-  refs/heads/main|refs/heads/master|refs/heads/dev) IS_LATEST=true ;;
-  *) IS_LATEST=false ;;
-esac
+# Default branch is flagged isLatest; other refs are uploaded as its children.
+PARENT_PROJECT=()
+PARENT_VERSION="refs/heads/$DEFAULT_BRANCH"
+if [[ "$GITHUB_REF" == "$PARENT_VERSION" ]]
+then
+    IS_LATEST=true
+else
+    IS_LATEST=false
+    if deptrack_project_exists "$PROJECT_NAME" "$PARENT_VERSION"
+    then
+        PARENT_PROJECT=(--form "parentName=$PROJECT_NAME" --form "parentVersion=$PARENT_VERSION")
+    else
+        echo "::warning::Parent $PROJECT_NAME@$PARENT_VERSION not found, uploading without parent"
+    fi
+fi
 
 if [ -n "${VERBOSE:-}" ]; then
     echo "[*] DEBUG : show SBOM content :"
@@ -29,6 +40,7 @@ echo "[*] Uploading BoM file to Dependency Track server"
 upload_bom_response=$(deptrack_curl /api/v1/bom --request POST  \
     --header "Content-Type: multipart/form-data" \
     --form "autoCreate=true" \
+    "${PARENT_PROJECT[@]}" \
     --form "projectName=$PROJECT_NAME" \
     --form "projectVersion=$GITHUB_REF" \
     --form "isLatest=$IS_LATEST" \
