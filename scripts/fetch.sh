@@ -24,6 +24,7 @@ RESULTS=()
 RESULTS_TABLE_SHORT=()
 RESULTS_TABLE_VERBOSE=()
 GLOBAL_STATUS=pass
+GLOBAL_EMOJI="✅"
 
 for line in "${lines_json[@]}"; do
 	[[ "$line" =~ [^[:space:]] ]] || continue
@@ -38,22 +39,34 @@ for line in "${lines_json[@]}"; do
 	# computes global status as max of the status
 	if   [[ "$project_status" == "fail" || "$GLOBAL_STATUS" == "fail" ]]; then 
 		GLOBAL_STATUS=fail
+		GLOBAL_EMOJI="❌"
 	elif [[ "$project_status" == "warn" ]]; then 
 		GLOBAL_STATUS=warn
+		GLOBAL_EMOJI="⚠️"
 	fi
 
 	project_risk_score=$(jq '.lastInheritedRiskScore // null' <<<"$project_result")
+
+	status_emoji=""
+	case "$project_status" in 
+		"pass")
+			status_emoji="✅" ;;
+		"fail")
+			status_emoji="❌" ;;
+		"warn")
+			status_emoji="⚠️" ;;
+	esac
 
 	RESULTS+=("$(jq -nc --arg name "$name" --arg version "$version" \
 		--argjson risk_score "$project_risk_score" --arg status "$project_status" \
 		'{name:$name, version:$version, risk_score:$risk_score, status:$status}')")
 	RESULTS_TABLE_VERBOSE+=("$(jq --arg name "$name" --arg risk_score "$project_risk_score" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) | \(.high // 0) | \(.medium // 0) | \(.low // 0) | \($risk_score) |"' <<<"$project_result")")
-	RESULTS_TABLE_SHORT+=("$(jq --arg name "$name" --arg status "$project_status" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) |"' <<<"$project_result")")
+	RESULTS_TABLE_SHORT+=("$(jq --arg name "$name" --arg status "$status_emoji" -r '.metrics | "| \($name) | \($status) | \(.critical // 0) |"' <<<"$project_result")")
 done
 
 # Global output
 RESULTS_MARKDOWN_VERBOSE=$(
-	echo "### Dependency-Track: ${GLOBAL_STATUS}"
+	echo "### Dependency-Track: ${GLOBAL_EMOJI} ${GLOBAL_STATUS}"
 	echo "| Project | Status | Critical | High | Medium | Low | Risk score |"
 	echo "|---|---|---|---|---|---|---|"
 	printf '%s\n' "${RESULTS_TABLE_VERBOSE[@]}"
@@ -61,7 +74,7 @@ RESULTS_MARKDOWN_VERBOSE=$(
 )
 
 RESULTS_MARKDOWN_SHORT=$(
-	echo "### Dependency-Track: ${GLOBAL_STATUS}"
+	echo "### Dependency-Track: ${GLOBAL_EMOJI} ${GLOBAL_STATUS}"
 	echo "| Project | Status | Critical |"
 	echo "|---|---|---|"
 	printf '%s\n' "${RESULTS_TABLE_SHORT[@]}"
