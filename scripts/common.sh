@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 DEPTRACK_RETRIES_TIMEOUT=60
-VERBOSE="--verbose"
+# VERBOSE="--verbose"
 # INSECURE="--insecure"
 
 deptrack_init() {
