@@ -109,6 +109,16 @@ Fetches the results of several uploads made with `wait_for_status: false`, in a 
 
 `scripts/common.sh` holds the code shared by `upload.sh` and `fetch.sh` (env checks and secret masking, curl wrapper, polling, status).
 
+### Polling timeout
+
+Polling (`wait_for_status: true` and the fetch action) checks every 10 s. The maximum number of rounds depends on the **calling** repository's visibility (`github.event.repository.private`):
+
+| Calling repo | Rounds | Max wait |
+|---|---|---|
+| private / internal (billed minutes) | 30 | ~5 min |
+| public (free minutes) | 120 | ~20 min |
+| unknown (event without `repository`, e.g. `schedule`) | 60 | ~10 min |
+
 ## How to use it
 
 ### Step 1: Get your Dependency-Track URL and API key

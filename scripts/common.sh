@@ -1,6 +1,15 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=80
+# Max polling rounds (x 10s), based on the calling repo visibility
+# (REPO_PRIVATE = github.event.repository.private):
+#   private / internal: billed minutes -> 30 (~5 min)
+#   public: free minutes               -> 120 (~20 min)
+#   unknown (e.g. schedule event)      -> 60 (~10 min)
+case "${REPO_PRIVATE:-}" in
+	true)  DEPTRACK_RETRIES_TIMEOUT=30 ;;
+	false) DEPTRACK_RETRIES_TIMEOUT=120 ;;
+	*)     DEPTRACK_RETRIES_TIMEOUT=60 ;;
+esac
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 

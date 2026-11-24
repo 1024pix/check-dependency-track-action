@@ -98,4 +98,5 @@ runs:
         BASIC_USER: ${{ inputs.basic_user }}
         BASIC_PASSWORD: ${{ inputs.basic_password }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
+        REPO_PRIVATE: ${{ github.event.repository.private }}
       run: bash "${{ github.action_path }}/../scripts/upload.sh"
