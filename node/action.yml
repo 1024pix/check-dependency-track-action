@@ -23,6 +23,10 @@ inputs:
     description: 'Doesnt compute packages from Dev dependencies'
     required: false
     default: false
+  ignore_npm_errors:
+    description: 'Generate the SBOM even if npm ls reports errors (e.g. ELSPROBLEMS, lockfile out of sync). The dependency tree may be incomplete'
+    required: false
+    default: 'false'
   basic_user:
     description: 'Optional Basic Auth user name'
     required: false
@@ -63,9 +67,18 @@ runs:
       working-directory: ${{ inputs.directory }}
       env: 
         SBOM_FILENAME: "sbom.json"
+        IGNORE_NPM_ERRORS: ${{ inputs.ignore_npm_errors }}
       run: |
         [ -f package-lock.json ] || { echo "[-] package-lock.json not found. Stopping the action!"; exit 1; }
-        npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --package-lock-only \
+        extra_args=()
+        case "$IGNORE_NPM_ERRORS" in
+          true)
+            echo "::warning::ignore_npm_errors is enabled: npm ls errors are ignored, the SBOM may be incomplete"
+            extra_args+=(--ignore-npm-errors) ;;
+          false) ;;
+          *) echo "[-] ignore_npm_errors must be true or false"; exit 1 ;;
+        esac
+        npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --package-lock-only "${extra_args[@]}" \
           --output-format JSON --spec-version 1.5 --output-file "$SBOM_FILENAME"
     - id: validate_sbom
       shell: bash

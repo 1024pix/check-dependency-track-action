@@ -33,6 +33,7 @@ Monorepo projects used to be named `<owner>/<repo>-<directory>`. They are now na
 - Node.js only:
     * **node_version**: (optional) Node.js version to install with `actions/setup-node`. Default = empty, which keeps the runner's Node.js.
     * **omit_devdependencies**: (optional) exclude dev dependencies from the SBOM. **Not wired yet.**
+    * **ignore_npm_errors**: (optional, `true` | `false`, default `false`) generate the SBOM even when `npm ls` fails (e.g. `ELSPROBLEMS` / `invalid: <pkg>@<version>` when `package-lock.json` is out of sync with `package.json`). The dependency tree may be incomplete: prefer fixing the lockfile (`npm ls <pkg> --package-lock-only`, then `npm install`).
 - Go only:
     * **main**: (optional) path to the `main` package, relative to `directory` (e.g. `cmd/server`). Default = `.`
 - Python only:
