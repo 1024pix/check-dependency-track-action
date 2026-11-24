@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-DEPTRACK_RETRIES_TIMEOUT=60
+DEPTRACK_RETRIES_TIMEOUT=80
 # VERBOSE="--verbose"
 # INSECURE="--insecure"
 
